@@ -1,0 +1,524 @@
+---
+title: "Admission and Discharge of Drug Abuse and Mental Health Treatment Facilities"
+author: "Amelia O'Leary"
+university: Regis Univeristy 2020
+output: html_document
+---
+
+## File Downloads
+
+If you are interested in downloading the files onto your local device, please follow the following links:
+
+Markdown File: <https://github.com/amoleary1763/amoleary1763.github.io/blob/master/MSDS692_DrugDischarge.Rmd>
+HTML: <https://github.com/amoleary1763/amoleary1763.github.io/blob/master/MSDS692_DrugDischarge.html>
+
+## Introduction 
+
+Addiction, drug use, and overdoses are not only a growing public health concern in America, but a largely preventable one. According to the Center for Disease Control and Prevention (CDC) 70,237 deaths occurred in the United States due to drug overdose. Additionally, the National Survey on Drug Use and Health reports 19.7 million people (ages 12 and older) struggled with a substance abuse disorder in that same year. 
+
+Psychological findings, legislation, and societal views are leading contributors to the rehabilitation programs that are available to people who battle this disease. In 1994, Switzerland passed progressive legislation which shifted focus from fighting against drugs to more available treatment options. This shift resulted in a 64% decrease in drug overdoses, as well as fewer cases in HIV and Hepatitis C infections, and a decrease in crime rates. Controversially, America is still fighting "The War on Drugs". Drug abuse and addiction costs American's over $740 billion annually with costs such as lost workplace productivity, healthcare expenses, and crime-related costs. 
+
+For this project I was interested in predicting the outcomes of the people who enroll in rehabilitation programs. I focused on two main questions: 
+
+1. How long will a patient be enrolled in a treatment program?
+1. Will their discharge be successful?
+
+By being able to predict the length of stay of a patient, facilities will better understand the type of treatment needed. Inpatient care tends to be a week to 30 days while outpatient care is usually greater than 90 days. By knowing this type of care, facilities can also estimate the cost of treatment which would directly benefit negotiation of grant funding, knowing insurance coverage, and understanding out of pocket expectations from the patient. 
+
+Understanding if a discharge is successful or not can help facilities employ intervention programs and additional or customizable treatment to ensure a successful/effective treatment and discharge. This also has the potential to reduce the need for several rehabilitation treatments of a patient, which would in turn reduce the costs and resources needed. 
+
+
+## Background and Data
+
+The data used in the following analysis will be national data regarding discharges from state-funded substance abuse facilities for the year of 2017. The specific data set that will be utilized will be the *Treatment Episode Data Set Discharge*, also referred to as TEDS-D-2017 which can be found at the following link:
+
+<https://datafiles.samhsa.gov/study/treatment-episode-data-set-discharges-teds-d-2017-nid18479>
+
+Which contains 1,661,207 observations (unique case numbers) and 76 columns. This data contains information on the demographic and substance characteristics of treatment discharges and their corresponding admissions. 
+
+For the machine learning portion of this analysis we will be using two main target variables: LOS and REASON. 
+
+**LOS**: Describes the length of treatment. The variable is a combination of numeric and categorical values, where 1-30 indicate a single number of days while 31-37 are categorical values that indicate a range of days.
+
+**REASON**: Indicates the outcome of treatment or other reason for transfer for discontinuance of treatment. This variable contains 7 categorical levels. 
+
+The data was curated and made available by The Substance Abuse and Mental Health Data Archive (SAMHDA), which collects, analyzes, and disseminates behavioral health data. This organization is an extension of the Center for Behavioral Health Statistics and Quality (CBHSQ) which provides these public-use data files and documentation in order to better understand this critical area of public health. 
+
+This data does include limitations, such as only including admissions to facilities that are licensed to certified by a state substance abuse agency to provide treatment and that receive state alcohol/drug agency funds for treatment. This varies state by state, meaning data sources could be biased based on state regulation and reporting. Records denote discharges, rather than individuals, and a person may be admitted and discharged more than once. This data also includes supplementary or calculated fields. A detailed codebook can be found at the following link: 
+
+<http://samhda.s3-us-gov-west-1.amazonaws.com/s3fs-public/field-uploads-protected/studies/TEDS-D-2017/TEDS-D-2017-datasets/TEDS-D-2017-DS0001/TEDS-D-2017-DS0001-info/TEDS-D-2017-DS0001-info-codebook.pdf>
+
+## Exploratory Analysis and Feature Engineering
+
+In this exploratory analysis I will look at frequency of drug type use, drug coincidence, number of drugs used, and descriptive statistics of target variables. General variable exploration was completed by going through the code book which outlines each variable with their definition (including categorical levels), variable type, frequency, and relative frequency. To reduce the processing expense for this analysis, I have manually reduced the columns.  
+
+
+### Drug Frequency 
+
+```{r, message = FALSE}
+# Setting up environment
+knitr::opts_chunk$set(echo = TRUE, fig.width = 8.5, fig.height = 5, fig.align = "center")
+
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(ggpubr)
+library(rpart)
+library(rattle)
+library(randomForest)
+options(scipen = 999, warn = -1)
+
+load("C:/Users/Amelia/Documents/Graduate/MSDS 692/TEDS-D-2017-DS0001-bndl-data-r/tedsd_puf_2017.RData")
+```
+
+```{r, message = FALSE}
+# Reduced Data Set (76 to 47 columns)
+
+dat <- tedsd_puf_2017 %>% 
+  select("AGE", "ALCDRUG", "ALCFLG", "AMPHFLG", "ARRESTS", "BARBFLG", "BENZFLG", "CBSA2010", 
+         "COKEFLG", "DSMCRIT", "EDUC", "EMPLOY", "ETHNIC", "FREQ1", "FREQ2", "FREQ3", 
+         "FREQ_ATND_SELF_HELP", "FRSTUSE1", "FRSTUSE2", "FRSTUSE3", "GENDER", "HALLFLG", 
+         "HERFLG", "HLTHINS", "HERFLG", "IDU", "INHFLG", "LIVARAG", "LOS", "MARFLG", "MARSTAT", 
+         "METHFLG", "METHUSE", "MTHAMFLG", "NOPRIOR", "OPSYNFLG", "OTCFLG", "OTHERFLG", 
+         "PCPFLG", "PREG", "PRIMINC", "PSYPROB", "RACE", "REASON", "SUB1", "SUB2", "SUB3", "VET")
+
+# Frequency of Drug Flags 
+
+drugs <- list("Alcohol", "Amphetamines", "Barbiturates", "Benzodiazepines", "Cocain/Crack", 
+           "Hallucinogens", "Heroin", "Inhalants", "Marijuana", "Non-Rx Methadone", 
+           "Methamphetamine", "Other Opiates/Synthetics", "Over-the-Counter", "Other", "PCP")
+
+flgs <- dat[, grep("FLG", colnames(dat))]
+flgs_melt <- melt(flgs) %>% 
+  filter(value == 1) %>% 
+  group_by(variable) %>%
+  count() %>% 
+  ungroup() %>%
+  mutate(drug_type = as.character(drugs)) %>%
+  mutate(pct = round(n/nrow(dat), 4))
+
+ggplot(flgs_melt, aes(drug_type, pct)) +
+  geom_bar(stat = "identity", fill = "#0072B2", color = "gray30") +
+  geom_text(label = paste0(flgs_melt$pct * 100, "%"), vjust = -.8, size = 3) +
+  scale_y_continuous(labels = scales::percent_format(2), limits = c(0,.46), breaks = seq(0, .45, by = .05))  +
+  labs(title = "Frequency of Drug Usage", y = "Frequency", x = "Drug Type") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = .5),
+        axis.text.x = element_text(angle = 25, hjust = 1, vjust = 1),
+        panel.grid.major.x = element_blank(), 
+        panel.grid.major.y = element_line(size = .1, color = "#dbdbdb"))
+
+```
+
+We can see that there are 15 total drug classifications, with the highest drug frequencies of Alcohol (45.33%), Marijuana (32.84%), Heroin (29.29%) and Crack/Cocaine (19.44%). It should be noted that this graph was constructed on the flags of drugs that were reported as a patient's primary, secondary, or tertiary substance at the time admission. This means that a patient could report more than one drug.
+
+### Drug Coincidence 
+
+Since we have a large amount of mixed numeric and categorical variables, instead of doing a typical correlation matrix I would like to look a the coincidence. This means "Out of all the people who reported alcohol, what is the next highest co-occurring drug?". Looking at the frequency graph above, I am going to explore the coincidence of the top three most used drugs: Alcohol, Heroin, Marijuana.  
+
+
+```{r, message = FALSE}
+flgs <- flgs[, c(1:15)]
+
+coinciDANCE <- function(x) {
+  
+  z <- enquo(x)
+
+  cnt <- flgs %>%
+    filter(!!z == 1)
+
+  y <- cnt %>%
+    melt() %>% 
+    filter(value == 1) %>% 
+    group_by(variable) %>% 
+    count() %>% 
+    ungroup() %>%
+    mutate(drug_type = as.character(drugs)) %>%
+    mutate(pct = round(n/nrow(cnt), 4))
+  
+  top <- top_n(n = 5, x = y, wt = pct)
+  
+  return(top)
+
+}
+
+flgs_mar <- coinciDANCE(MARFLG)
+flgs_alc <- coinciDANCE(ALCFLG)
+flgs_her <- coinciDANCE(HERFLG)
+
+plotme <- function(x, y) {
+  
+  ggplot(x, aes(drug_type, pct)) +
+    geom_bar(stat = "identity", fill = "#009E73", color = "gray30") +
+    geom_text(label = paste0(x$pct * 100, "%"), vjust = -.8, size = 3) +
+    scale_y_continuous(labels = scales::percent_format(2))  +
+    labs(title = paste(y, "Drug Coincidence"), y = "Frequency", x = "Drug Type") +
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+          plot.title = element_text(hjust = .5),
+          panel.grid.major.x = element_blank(), 
+          panel.grid.major.y = element_line(size = .1, color = "#dbdbdb"))
+
+}  
+
+plot_mar <- plotme(flgs_mar, "Marijuana")
+plot_alc <- plotme(flgs_alc, "Alcohol")
+plot_her <- plotme(flgs_her, "Heroin")
+
+ggarrange(plot_mar, plot_alc, plot_her,
+          ncol = 3, nrow = 1)
+
+```
+
+From these graphs, we can see that Alcohol and Marijuana are the most prominent drug use co-occurrence, followed by Heroin and Cocaine/Crack. In other words, we can see that those who use Alcohol are more likely to also use Marijuana, those who use Marijuana are more likely to also use Alcohol, and those who use Heroin are more likely to use Cocaine/Crack.
+
+### Frequency of Drug Coincidence
+
+```{r}
+flgs$TOT_DRUGS <- raster::rowSums(flgs)
+flgs_freq <- flgs %>% 
+  group_by(TOT_DRUGS) %>%
+  count() %>%
+  ungroup() %>% 
+  mutate(pct = round(n/nrow(dat), 4))
+
+ggplot(flgs_freq, aes(TOT_DRUGS, pct)) +
+  geom_bar(stat = "identity", fill = "#0072B2", color = "gray30") +
+  geom_text(label = paste0(flgs_freq$pct * 100, "%"), vjust = -.8, size = 3) +
+  scale_y_continuous(labels = scales::percent_format(2), limits = c(0,.44), breaks = seq(0, .40, by = .1))  +
+  labs(title = "Frequency of Drug Coincidence", y = "Frequency", x = "Number of Drugs") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = .5),
+        panel.grid.major.x = element_blank(), 
+        panel.grid.major.y = element_line(size = .1, color = "#dbdbdb"))
+
+```
+
+Most people report having more than one drug usage when admitting into rehabilitation (55.43%). Understanding the drug frequency and coincidence can help facilities orient the patient with the best treatments, understand withdrawal symptoms, and provide the most effective support to patients during rehabilitation.
+
+### Target Variables
+#### LOS 
+
+```{r}                                                                                      
+los <- tedsd_puf_2017 %>%
+  group_by(LOS) %>% 
+  count()
+
+ggplot(los, aes(LOS, n)) + 
+  geom_bar(stat = "identity", fill = "#ABCDEF", color = "gray30") +
+  labs(title = "Distribution of Length of Stay", x = "Length of Stay", y = "Count") + 
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = .5), 
+        panel.grid.major.y = element_line(size = .1, color = "#dbdbdb"))
+```
+
+I find this distribution pretty interesting. We can see a small inflation around 14, 21, and 28 days, which most likely indicates standard treatment lengths within rehabilitation programs. 
+
+Since Length of stay is both numeric and categorical (1-30 vs 31-37, respectively), I will evaluate each section separately.
+
+```{r}
+summary(tedsd_puf_2017 %>% filter(LOS < 31) %>% select(LOS))
+```
+
+Looking at the numeric values of days 1-30, we can see the average stay is about 9 days with a median of 5 days. This indicates that either patients are receiving short term rehabilitation programs or are not completing their program. 
+
+```{r}
+summary(tedsd_puf_2017 %>% filter(LOS > 30) %>% select(LOS) %>% mutate(LOS = as.factor(LOS)))
+```
+
+Of the categorical variables, 36 (181-365 days) has the highest frequency. This makes up 8.7% of all patient's length of stay. 
+
+Due to the nature of this variable, I am going to create a new variable that creates two categorizations: 1 to 30 days and More than 31 days. This categorization isn't only convenient because of the structure of the given data, but convenient for treatment lengths. Impatient care tends to be shorter term (30 days or less) while outpatient tends to be more than 30 days. This categorization gives a clear indication of the best type of treatment, and will also help machine learning algorithms with predictions.
+
+```{r}
+dat <- dat %>% 
+  mutate(LOS_cat = ifelse(dat$LOS <= 31, "1 to 30", 
+                          ifelse(dat$LOS >= 31, "More than 31", "NA")))
+
+dat$LOS_cat <- factor(dat$LOS_cat, levels = c("1 to 30", "More than 31"))
+
+los <- dat %>%
+  group_by(LOS_cat) %>% 
+  count()
+
+ggplot(los, aes(LOS_cat, n)) + 
+  geom_bar(stat = "identity", fill = "#ABCDEF", color = "gray30") +
+  labs(title = "Categorization of Length of Stay", x = "Length of Stay category", y = "Count") + 
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = .5), 
+        panel.grid.major.y = element_line(size = .1, color = "#dbdbdb"))
+```
+
+This distribution is pretty good. We don't see one categorization have a significantly more amount of observations than the other, making it reliable for a machine learning algorithm to categorize. Additionally, we can see that every observation has a categorization, ensuring that we are not introducing any NA values.
+
+#### REASON 
+
+Reason is a categorical variable that indicates the reason for the discontinuance of treatment.
+
+|Value|Description|Frequency|Percent|
+|-----|-----------|---------|-------|
+|1|Treatment completed|679,850|40.9%|
+|2|Dropped out of treatment|425,444|25.6%|
+|3|Terminated by facility|99,319|6.0%|
+|4|Transferred to another treatment program or facility|363,591|21.9%|
+|5|Incarcerated|29.650|1.8%|
+|6|Death|3,788|0.2%|
+|7|Other|59,565|3.6%|
+
+More specific definitions of the descriptions are as follows: 
+
+* Treatment completed: All parts of the treatment plan or program were completed.
+* Dropped out of treatment (left against professional advice): Client chose not to complete program, with or without specific advice to continue treatment. Includes clients who drop out of treatment for unknown reason and clients who have not received treatment for some time and are discharged for administrative reasons.
+* Terminated by facility: Treatment terminated by action of facility, generally because of client non-compliance or violation of rules, laws, or procedures (not because client dropped out of treatment, client incarcerated, or other client motivated reason).
+* Transferred to another substance use treatment program or facility: Client was transferred to another substance use treatment program, provider or facility within an episode of treatment.
+* Incarcerated: This code is to be used for all clients whose course of treatment is terminated because the client has been incarcerated. Includes jail, prison, and house confinement.
+* Death
+* Other: Moved, illness, hospitalization, or other reason somewhat out of client's control.
+
+For this variable, I am going to create a new data set that only includes patients that have *Treatment completed* (1), *Dropped out of treatment* (2), and *Terminated by facility* (3). These will then be categorized into two groups, "Successful" and "Unsuccessful", where values 1 will be successful and values 2 and 3 will be unsuccessful.
+
+
+```{r}
+dat_reason <- dat %>% 
+  mutate(REASON_cat = ifelse(dat$REASON == 1, "Successful", 
+                             ifelse(dat$REASON == 2, "Unsuccessful", 
+                                    ifelse(dat$REASON == 3, "Unsuccessful", NA)))) %>% 
+  filter(!is.na(REASON_cat))
+
+reason <- dat_reason %>%
+  group_by(REASON_cat) %>% 
+  count()
+
+ggplot(reason, aes(REASON_cat, n)) + 
+  geom_bar(stat = "identity", fill = "#ABCDEF", color = "gray30") +
+  labs(title = "Categorization of Length of Stay", x = "Length of Stay Category", y = "Count") + 
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = .5), 
+        panel.grid.major.y = element_line(size = .1, color = "#dbdbdb"))
+```
+
+Once again, our distribution looks fine. Successful discharges have a slightly higher frequency than unsuccessful dischargers (This is great!), but shouldn't be a problem when running machine learning algorithms.
+
+Now that we understand our data and have clean, usable data, we can move to machine learning algorithms. 
+
+## Machine Learning 
+
+### Creating Samples 
+
+We will need to create two samples, since we have two different target variables. Since the dataset is so large, we will be taking a random sample of 60,000 observations. The sample will then be split into a training and test set, at a 75% and 25% split, respectively.
+
+```{r}
+
+set.seed(123)
+
+# Sample for LOS
+dat.sample.los <- sample_n(dat, 60000)
+
+# Removing LOS variable
+dat.sample.los <- dat.sample.los[-28]
+
+samp.los <- sample(nrow(dat.sample.los),0.75* nrow(dat.sample.los))
+train.los <- dat.sample.los[samp.los, ]
+test.los <- dat.sample.los[-samp.los, ]
+
+# Sample for REASON
+dat.sample.reas <- sample_n(dat_reason, 60000)
+
+# Removing LOS_cat and REASON variable
+dat.sample.reas <- dat.sample.reas[, -c(43,48)]
+
+samp.reas <- sample(nrow(dat.sample.reas),0.75* nrow(dat.sample.reas))
+train.reas <- dat.sample.reas[samp.reas, ]
+test.reas <- dat.sample.reas[-samp.reas, ]
+
+```
+
+### Decision Tree and Variable Selection 
+
+For the project I decided to use a decision tree for categorization, but also for variable selection. This data is largely categorical, and just plain large, which a decision tree will be able to handle. Additionally, this methodology will select contributing variables to classification.
+
+### LOS 
+
+```{r}
+
+DecisionTree <- rpart(LOS_cat ~ ., dat = train.los, 
+                      control=rpart.control(minsplit = 1, minbucket = 1, cp = 0.001))
+
+plotcp(DecisionTree)
+
+printcp(DecisionTree)
+fancyRpartPlot(DecisionTree)
+
+pred1 <- predict(DecisionTree, test.los, type = "class")
+acc <- table(test.los$LOS_cat, pred1)
+acc
+
+# Accuracy 
+sum(diag(acc)) / sum(acc)
+
+# Recall
+acc[1,1]/(acc[1,1] + acc[1,2])
+
+# Precision
+acc[1,1]/(acc[1,1] + acc[2,1])
+```
+
+This model selected the variables: 
+* Metropolitan or micropolitan statistical area
+* DSM diagnosis
+* Employment Status
+* Frequency of use at admission (primary substance)
+* Frequency of use at admission (secondary substance)
+* Frequency of use at admission (tertiary substance)
+* Living arrangements at admission
+* Marijuana reported at admission
+* Planned medication-assisted opioid therapy
+* Methamphetamine reported at admission
+* Source of income/support
+* Co-occurring mental and substance use disorders
+* Reason for discharge
+* Substance use at admission (primary)
+* Substance use at admission (secondary)
+
+With a root node error of 0.419, an accuracy of 71.13%, a recall of 74.79%, and a precision of 75.72% 
+
+### REASON 
+
+```{r}
+
+DecisionTree <- rpart(REASON_cat ~ ., dat = train.reas, 
+                      control=rpart.control(minsplit = 1, minbucket = 1, cp = 0.0014))
+
+plotcp(DecisionTree)
+
+printcp(DecisionTree)
+fancyRpartPlot(DecisionTree)
+
+pred1 <- predict(DecisionTree, test.reas, type = "class")
+acc <- table(test.los$LOS_cat, pred1)
+acc
+
+# Accuracy 
+sum(diag(acc)) / sum(acc)
+
+# Recall
+acc[1,1]/(acc[1,1] + acc[1,2])
+
+# Precision
+acc[1,1]/(acc[1,1] + acc[2,1])
+```
+
+This model selected the variables: 
+* Substance use type (Alcohol, other drugs, or both)
+* Number of Arrests in the past 30 days
+* Metropolitan or micropolitan statistical area
+* DSM diagnosis
+* Frequency of attendance at substance use self-help groups in the 30 days prior to admission
+* Frequency of use at admission (primary substance)
+* Health insurance at admission
+* Length of stay
+* Marijuana reported at admission
+* Planned medication-assisted opioid therapy
+* Source of income/support
+* Co-occurring mental and substance use disorders
+* Substance use at admission (primary)
+* Substance use at admission (secondary)
+
+With a root node error of 0.436, an accuracy of 53.34%, a recall of 68.45%, and a precision of 58.82% 
+
+### Random Forest 
+
+Given the results of the decision trees, we will create datasets with the selected variables. 
+
+```{r}
+new.train.los <- train.los %>%
+  select("CBSA2010", "DSMCRIT", "EMPLOY", "FREQ1", "FREQ2", "FREQ3",   
+         "LIVARAG", "MARFLG", "METHUSE", "MTHAMFLG", "PRIMINC", "PSYPROB", 
+         "REASON", "SUB1", "SUB2", "LOS_cat")
+
+new.train.reas <- train.reas %>% 
+  select("ALCDRUG", "ARRESTS", "CBSA2010", "DSMCRIT", 
+         "FREQ_ATND_SELF_HELP", "FREQ1", "HLTHINS", "LOS", 
+         "MARFLG", "METHUSE", "PRIMINC", "PSYPROB", "SUB1", "SUB2", "REASON_cat")
+
+new.test.los <- test.los %>%
+  select("CBSA2010", "DSMCRIT", "EMPLOY", "FREQ1", "FREQ2", "FREQ3",   
+         "LIVARAG", "MARFLG", "METHUSE", "MTHAMFLG", "PRIMINC", "PSYPROB", 
+         "REASON", "SUB1", "SUB2", "LOS_cat")
+
+new.test.reas <- test.reas %>% 
+  select("ALCDRUG", "ARRESTS", "CBSA2010", "DSMCRIT", 
+         "FREQ_ATND_SELF_HELP", "FREQ1", "HLTHINS", "LOS", 
+         "MARFLG", "METHUSE", "PRIMINC", "PSYPROB", "SUB1", "SUB2", "REASON_cat")
+```
+
+In the next section I will employ a random forest algorithm on both the custom LOS and REASON datasets. I chose a random forest for a lot of the same reasons from the decision tree, but random forests tend to run a little more accurate than decision trees. The hope is with the variable selection and more powerful algorithm, we will increase the accuracy, recall, and precision from the decision trees. 
+
+```{r}
+# LOS
+  
+model <- randomForest(LOS_cat ~ ., dat = new.train.los)
+model 
+
+pred2 <- predict(model, newdata = new.test.los)
+plot(pred2)
+
+acc2 <- table(new.test.los$LOS_cat, pred2)
+acc2
+
+# Accuracy
+sum(diag(acc2)) / sum(acc2)
+
+# Recall
+acc2[1,1]/(acc2[1,1] + acc2[1,2])
+
+# Precision
+acc2[1,1]/(acc2[1,1] + acc2[2,1])
+
+```
+
+This algorithm did a fine job with categorization. The accuracy was 73.8%, recall was 79.9%, and precision was 76.51%.
+
+```{r}
+# REASON
+
+new.train.reas$REASON_cat <- as.factor(new.train.reas$REASON_cat)
+
+model2 <- randomForest(REASON_cat ~ ., dat = new.train.reas)
+model2
+
+pred3 <- predict(model2, newdata = new.test.reas)
+plot(pred3)
+
+acc3 <- table(new.test.reas$REASON_cat, pred3)
+acc3
+
+# Accuracy
+sum(diag(acc3)) / sum(acc3)
+
+# Recall
+acc3[1,1]/(acc3[1,1] + acc3[1,2])
+
+# Precision
+acc3[1,1]/(acc3[1,1] + acc3[2,1])
+```
+
+This algorithm also did fairly well with categorization. The accuracy was 71.63%, recall was 80.79%, and precision was 72.01%.
+
+## Conclusion 
+
+Machine learning has the potential to help patients find proper treatment, help anticipate and reduce costs, and predict if a patient will have a successful discharge from the facility. With this further understanding of this public health epidemic in America, we will be able to address and reduce the pain, suffering, and death that reaches so many citizens. In this analysis we explored drug frequencies, coincidence, and frequency of drug coincidence. This exploration gave us a well-rounded understanding of our data, as well as drug behaviors of the patients admitting to rehabilitation programs. For categorization, decision trees gave us a 71.13% accuracy for Length of Stay predictions and a 53.34% accuracy for Reason of Discharge predictions. However, we did see a higher percentage of precision (how was our model predicts the "relevant" that were actually relevant) in our Length of Stay model (75.72%) while a higher percentage of recall (the ability to find all relevant instances in a dataset) was seen in our Reason of Discharge model (68.45%). Overall, I am impressed with the way the models functioned for these tasks. The decision trees allow facilities and treatment providers to categorize incoming patients based on the tree portfolio. Limitations may be introduced by manually scaling down the columns of the dataset. 
+
+
+## References 
+<https://www.rehabs.com/drug-rehab-programs/>
+
+<https://www.addictioncenter.com/treatment/inpatient-rehab/>
+
+<https://www.cdc.gov/nchs/products/databriefs/db329.htm>
+
+<https://americanaddictioncenters.org/rehab-guide/addiction-statistics>
+
+<https://www.northcarolinahealthnews.org/2019/01/21/switzerland-couldnt-stop-drug-users-so-it-started-supporting-them/>
+
+<https://towardsdatascience.com/beyond-accuracy-precision-and-recall-3da06bea9f6c>
