@@ -1,0 +1,440 @@
+---
+title: "Understanding Air Quality via Exploratory and Time Series Analysis"
+author: "Amelia O'Leary"
+output: html_document
+---
+
+## File Downloads 
+
+If you are interested in downloading the files onto your local device, please follow the following links:
+
+Markdown File: <https://github.com/amoleary1763/amoleary1763.github.io/blob/master/MSDS692_DrugDischarge.Rmd>
+
+HTML: <https://github.com/amoleary1763/amoleary1763.github.io/blob/master/MSDS692_DrugDischarge.html>
+
+All of the data used in this workbook can be found at the following link:
+<https://aqs.epa.gov/aqsweb/airdata/download_files.html#AQI>
+
+The following report is a governmental anlysis on air pollutants and trends: 
+<https://gispub.epa.gov/air/trendsreport/2020/#home>
+
+## Introduction
+
+For the past several years climate change has been at the forefront of science. Legislation, regulation, and social expectations have been shifting in mass efforts to slow down climate change. Moreover, the air that surrounds each and every one of us today has a significant impact on our health. Due to increasing pollutants, typically from vehicles or factories, chemicals such as Nitrogen Dioxide, Carbon Monoxide, and Sulfur Dioxide are being released into the air and also being introduced into our bodies, whether we like it or not. These chemicals can be responsible for adverse health effects, such as respiratory diseases.
+
+As humans, the population, and technology continue to advance, so will our understanding of our impact on the environment and earth we live on. Data gives us a lot of insight into what is going on in the world around us. It can help us understand, experiment, and take action in the appropriate regard. We can use data on the measurements of chemicals released into the air to learn about their effects on human life, animal life, and the environment. If we understand their effects, we can also understand the necessary regulations we need to keep our society sustainable. This can then influence legislation, corporation regulation, resource availability, governmental funding, and even day to day lifestyle. 
+
+## Background and Data 
+
+For this report I built a interactive exploratory data dashboard using the software Tableau. I chose this because the usage Tableau (or any other data visualization software) is a growing expectation in the data science field. Additionally, data visualization is a key component to communicating complex data in a simplistic manner. It is imperative for data scientists to know how to present findings in a way that clients will be able to understand, as well as giving clients to the ability to make data driven decisions for their business, software, employees, etc. Tableau also has a "public" use options, but other competitors in data visualization are Qlik, Power BI, MicroStrategy, Excel, and more. Tableau's public option gives users access to the software as long as the project is published to a public server, giving users access to a plethora of people's dashboards and underlying data. This creates a community of of creativity, exploration, and resources. There are many forums to learn from and ask questions, so self-teaching is a very viable option. From my experience with this software it's one of those "hard to learn, easy to master", meaning there is a pretty large learning curve when it comes to the logistics of this software, but once those are pinned down the software is easy to use. 
+
+After the dashboard, I complete a time series analysis. Given that this data is over time, I was interested in seeing the trend of data without the seasonal influence. This analysis allows me to decompose a series, so attributes such as seasonality and random error can be removed and the "true" trend line is observed. Initially I wanted to do some significance testing on data before the COVID-19 economical shut down and after (this would be comparing the first part of 2020 to middle of March), however the data obtained made it very difficult and would be ultimately unreliable. 
+
+The data for this project was downloaded from <https://aqs.epa.gov/aqsweb/airdata/download_files.html#AQI>. For this project I used six different components: AQI, Temperature, Ozone, SO2, NO2, and CO and downloaded files since 2018 (the data goes back to 1980). The files AQI and Temperature were recorded by state and county on a daily basis while Ozone, SO2, CO and NO2 were recorded on an hourly basis. Each file contains one year. Unfortunately, this data isn't necessarily consistent, meaning not every county reports each day/hour which results in a lot of missing data. Additionally, as the time approaches the most recent records the amount of data availability decreases. This is the reason hypothesis testing was not performed in this report. This data is updated by the government twice a year: once in June (to capture complete data for the prior year) and once in December (to caputre the data for the summer). Therefore, this data needed to hypothesis testing regarding the COVID-19 shutdown will be available to the public in December 2020. 
+ 
+
+## Data Cleaning 
+
+This section is dedicated to the loading, binding, and cleaning methodology used to create the data set used for the tableau input and time series analysis. The subsequent code is commented out, so the local machine does not have to load each data source each time the markdown file runs, as the final data set is written to a .csv file that is then loaded into the local environment.
+
+
+```{r setup, include=FALSE, message = FALSE}
+# Setting up environment
+knitr::opts_chunk$set(echo = TRUE, fig.width = 8.5, fig.height = 5, fig.align = "center")
+
+library(dplyr)
+
+setwd("~/Graduate/MSDS 696")
+
+##### Reading in data #####
+
+# aqi2020 <- read.csv(unz("daily_aqi_by_county_2020.zip", "daily_aqi_by_county_2020.csv"))
+# aqi2019 <- read.csv(unz("daily_aqi_by_county_2019.zip", "daily_aqi_by_county_2019.csv"))
+# aqi2018 <- read.csv(unz("daily_aqi_by_county_2018.zip", "daily_aqi_by_county_2018.csv"))
+# 
+# # 44201
+# 
+# ozone2020 <- read.csv(unz("hourly_44201_2020.zip", "hourly_44201_2020.csv"))
+# ozone2019 <- read.csv(unz("hourly_44201_2019.zip", "hourly_44201_2019.csv"))
+# ozone2018 <- read.csv(unz("hourly_44201_2018.zip", "hourly_44201_2018.csv"))
+# 
+# # 42401
+# 
+# so2020 <- read.csv(unz("hourly_42401_2020.zip", "hourly_42401_2020.csv"))
+# so2019 <- read.csv(unz("hourly_42401_2019.zip", "hourly_42401_2019.csv"))
+# so2018 <- read.csv(unz("hourly_42401_2018.zip", "hourly_42401_2018.csv"))
+# 
+# 
+# # 42101
+# 
+# co2020 <- read.csv(unz("hourly_42101_2020.zip", "hourly_42101_2020.csv"))
+# co2019 <- read.csv(unz("hourly_42101_2019.zip", "hourly_42101_2019.csv"))
+# co2018 <- read.csv(unz("hourly_42101_2018.zip", "hourly_42101_2018.csv"))
+# 
+# # 42602
+# 
+# no2020 <- read.csv(unz("hourly_42602_2020.zip", "hourly_42602_2020.csv"))
+# no2019 <- read.csv(unz("hourly_42602_2019.zip", "hourly_42602_2019.csv"))
+# no2018 <- read.csv(unz("hourly_42602_2018.zip", "hourly_42602_2018.csv"))
+# 
+# # Tempurature 
+# 
+# tmp2020 <- read.csv(unz("daily_TEMP_2020.zip", "daily_TEMP_2020.csv")) 
+# tmp2019 <- read.csv(unz("daily_TEMP_2019.zip", "daily_TEMP_2019.csv")) 
+# tmp2018 <- read.csv(unz("daily_TEMP_2018.zip", "daily_TEMP_2018.csv")) 
+
+```
+
+#### Binding and Aggregation
+
+The AQI dataset is used as the base file, meaning it will have all of its recorded values and the supplemental data will be bound based on the availability of data from AQI (left join). Once all the necessary data is loaded, it will be cleaned to contain only the relevant information and bound on State, County, and Date. Hourly data will need to be aggregated into a daily value in order to bind correctly. For this aggregation I used the mean value of all records recorded within the day. 
+
+
+```{r}
+
+################################## CLEANING DATA ################################ 
+
+# # AQI 
+# 
+# aqi2020$Date <- as.Date(aqi2020$Date, format = '%Y-%m-%d')
+# 
+# aqi.clean <- function(x){
+#   
+#   x$Date <- as.Date(x$Date, format = '%Y-%m-%d')
+#   
+#   y <- x %>% 
+#     select(Date, State.Name, county.Name, AQI, Category)
+# }
+# 
+# aqi.20clean <- aqi.clean(aqi2020)
+# aqi.19clean <- aqi.clean(aqi2019)
+# aqi.18clean <- aqi.clean(aqi2018)
+# 
+# aqi.whole <- rbind(aqi.20clean, aqi.19clean, aqi.18clean)
+# 
+# # Temperature 
+# 
+# tmp.clean <- function(x){
+#   
+#   x$Date.Local <- as.Date(x$Date.Local, format = '%Y-%m-%d')
+#   
+#   y <- x %>% 
+#     group_by(Date.Local, State.Name, County.Name) %>% 
+#     summarize(Temperature = mean(Arithmetic.Mean)) %>% 
+#     ungroup()
+# }
+# 
+# tmp.20clean <- tmp.clean(tmp2020)
+# tmp.19clean <- tmp.clean(tmp2019)
+# tmp.18clean <- tmp.clean(tmp2018)
+# 
+# tmp.whole <- rbind(tmp.20clean, tmp.19clean, tmp.18clean)
+# big.data <- left_join(aqi.whole, tmp.whole, by = c("Date" = "Date.Local", "State.Name", "county.Name" = "County.Name"))
+# 
+# 
+# stuff.clean <- function(x) {
+#   
+#   x$Date.Local <- as.Date(x$Date.Local, format = '%Y-%m-%d')
+#   
+#   y <- x %>%
+#     group_by(Date.Local, State.Name, County.Name) %>%
+#     summarize(Name = mean(Sample.Measurement)) %>%
+#     ungroup()
+#   
+# }
+# 
+# ozone.20clean <- stuff.clean(ozone2020)
+# ozone.19clean <- stuff.clean(ozone2019)
+# ozone.18clean <- stuff.clean(ozone2018)
+# 
+# ozone.whole <- rbind(ozone.20clean, ozone.19clean, ozone.18clean)
+# 
+# big.data <- left_join(big.data, ozone.whole, by = c("Date" = "Date.Local", "State.Name", "county.Name" = "County.Name"))
+# 
+# ## SO2
+# 
+# so.20clean <- stuff.clean(so2020)
+# so.19clean <- stuff.clean(so2019)
+# so.18clean <- stuff.clean(so2018)
+# 
+# so.whole <- rbind(so.20clean, so.19clean, so.18clean)
+# 
+# big.data <- left_join(big.data, so.whole, by = c("Date" = "Date.Local", "State.Name", "county.Name" = "County.Name"))
+# 
+# ## CO
+# 
+# co.20clean <- stuff.clean(co2020)
+# co.19clean <- stuff.clean(co2019)
+# co.18clean <- stuff.clean(co2018)
+# 
+# co.whole <- rbind(co.20clean, co.19clean, co.18clean)
+# 
+# big.data <- left_join(big.data, co.whole, by = c("Date" = "Date.Local", "State.Name", "county.Name" = "County.Name"))
+# 
+# ## NO2
+# 
+# no.20clean <- stuff.clean(no2020)
+# no.19clean <- stuff.clean(no2019)
+# no.18clean <- stuff.clean(no2018)
+# 
+# no.whole <- rbind(no.20clean, no.19clean, no.18clean)
+# 
+# big.data <- left_join(big.data, no.whole, by = c("Date" = "Date.Local", "State.Name", "county.Name" = "County.Name"))
+# 
+# colnames(big.data)[7] <- "Ozone"
+# colnames(big.data)[8] <- "SO2"
+# colnames(big.data)[9] <- "CO"
+# colnames(big.data)[10] <- "NO2"
+# 
+# tableau <- big.data[, -5]
+# tableau <- reshape2::melt(tableau)
+
+# write.csv(tableau, "AQI_TableauInput2.csv", row.names = FALSE)    
+# write.csv(big.data, "AQI_TableauInput.csv", row.names = FALSE)
+```
+
+#### Saving the Base Files 
+
+Two files were saved onto the local device, both containing the same data in different data structures. The file "AQI_TableauInput2.csv" is in a tabular format, meaning there is one column that contains a "stacked" style of the variable (the type of component being measured - AQI, Temperature, Ozone, etc.). The file "AQI_TableauInput.csv" is a crosstab format, meaning the component measurements are contained in different columns. This gives it a "flat" structure and will be used to calculate more attributes in the next section. 
+
+A common measurement used to track general trends in data are KPIs, or Key Performance Indicators. For this dashboard, I wanted to show year over year as well as month over month trends, to observe if measurements are generally trending up or down. This next section calculates those indicators.  
+
+```{r}
+dat <- read.csv("AQI_TableauInput.csv")
+
+## By Year 
+
+dat$Date <- as.Date(dat$Date, format = '%Y-%m-%d')
+dat$floor_date <- lubridate::floor_date(dat$Date, "year")
+
+dat.year <- dat %>% 
+  group_by(floor_date, State.Name, county.Name) %>% 
+  summarise(AQI = median(AQI, na.rm = TRUE),
+            Temperature = median(Temperature, na.rm = TRUE), 
+            Ozone = median(Ozone, na.rm = TRUE), 
+            SO2 = median(SO2, na.rm = TRUE), 
+            CO = median(CO, na.rm = TRUE), 
+            NO2 = median(NO2, na.rm = TRUE))
+
+dat.year <- reshape2::melt(dat.year, id.vars = c("floor_date", "State.Name", "county.Name"))
+dat.year <- reshape2::dcast(dat.year, variable + State.Name + county.Name ~ floor_date, median)
+
+#### Year over Year Calculations 
+
+YoY <- dat.year %>% 
+  mutate(`2019-01-01` = (`2019-01-01` - `2018-01-01`) / (`2018-01-01`),
+         `2020-01-01` = (`2020-01-01` - `2019-01-01`) / (`2019-01-01`))
+
+YoY.melt <- reshape2::melt(YoY, id.vars = c("variable", "State.Name", "county.Name"))
+colnames(YoY.melt)[1] <- "Measure"
+YoY.cast <- reshape2::dcast(YoY.melt, variable + State.Name + county.Name ~ Measure, median)
+YoY.cast$variable <- as.Date(YoY.cast$variable, format = '%Y-%m-%d')
+
+## By Month 
+
+dat$floor_date <- lubridate::floor_date(dat$Date, "month")
+
+dat.month <- dat %>% 
+  group_by(floor_date, State.Name, county.Name) %>% 
+  summarise(AQI = median(AQI, na.rm = TRUE),
+            Temperature = median(Temperature, na.rm = TRUE), 
+            Ozone = median(Ozone, na.rm = TRUE), 
+            SO2 = median(SO2, na.rm = TRUE), 
+            CO = median(CO, na.rm = TRUE), 
+            NO2 = median(NO2, na.rm = TRUE))
+
+dat.month <- reshape2::melt(dat.month, id.vars = c("floor_date", "State.Name", "county.Name"))
+dat.month <- reshape2::dcast(dat.month, variable + State.Name + county.Name ~ floor_date, median)
+
+#### Month over Month Calculations 
+
+YoY <- dat.month %>% 
+  mutate(`2019-01-01` = (dat.month[, 16] - dat.month[, 4]) / dat.month[, 4],
+         `2019-02-01` = (dat.month[, 17] - dat.month[, 5]) / dat.month[, 5],
+         `2019-03-01` = (dat.month[, 18] - dat.month[, 6]) / dat.month[, 6],
+         `2019-04-01` = (dat.month[, 19] - dat.month[, 7]) / dat.month[, 7],
+         `2019-05-01` = (dat.month[, 20] - dat.month[, 8]) / dat.month[, 8],
+         `2019-06-01` = (dat.month[, 21] - dat.month[, 9]) / dat.month[, 9],
+         `2019-07-01` = (dat.month[, 22] - dat.month[, 10]) / dat.month[, 10],
+         `2019-08-01` = (dat.month[, 23] - dat.month[, 11]) / dat.month[, 11],
+         `2019-09-01` = (dat.month[, 24] - dat.month[, 12]) / dat.month[, 12],
+         `2019-10-01` = (dat.month[, 25] - dat.month[, 13]) / dat.month[, 13],
+         `2019-11-01` = (dat.month[, 26] - dat.month[, 14]) / dat.month[, 14],
+         `2019-12-01` = (dat.month[, 27] - dat.month[, 15]) / dat.month[, 15],
+         `2020-01-01` = (dat.month[, 28] - dat.month[, 16]) / dat.month[, 16],
+         `2020-02-01` = (dat.month[, 29] - dat.month[, 17]) / dat.month[, 17],
+         `2020-03-01` = (dat.month[, 30] - dat.month[, 18]) / dat.month[, 18],
+         `2020-04-01` = (dat.month[, 31] - dat.month[, 19]) / dat.month[, 19],
+         `2020-05-01` = (dat.month[, 32] - dat.month[, 20]) / dat.month[, 20]) %>% 
+  select(-c(4:16))
+
+
+YoY.melt <- reshape2::melt(YoY, id.vars = c("variable", "State.Name", "county.Name"))
+colnames(YoY.melt)[1] <- "Measure"
+YoY.cast <- reshape2::dcast(YoY.melt, variable + State.Name + county.Name ~ Measure, median)
+
+YoY.cast$variable <- as.Date(YoY.cast$variable, format = '%Y-%m-%d')
+
+new.dat <- left_join(dat, YoY.cast, by = c("Date" = "variable", "State.Name", "county.Name"))
+
+colnames(new.dat) <- c("Date", "State.Name", "county.Name", "AQI", "Category", "Temperature", "Ozone", "SO2", "CO", "NO2", 
+                       "Month", "AQI_YoY", "Temperature_YoY", "Ozone_YoY", "SO2_YoY", "CO_YoY", "NO2_YoY")
+
+###
+
+MoM <- dat.month %>% 
+  mutate(`2018-02-01` = (dat.month[, 5] - dat.month[, 4]) / dat.month[, 4],
+         `2018-03-01` = (dat.month[, 6] - dat.month[, 5]) / dat.month[, 5],
+         `2018-04-01` = (dat.month[, 7] - dat.month[, 6]) / dat.month[, 6],
+         `2018-05-01` = (dat.month[, 8] - dat.month[, 7]) / dat.month[, 7],
+         `2018-06-01` = (dat.month[, 9] - dat.month[, 8]) / dat.month[, 8],
+         `2018-07-01` = (dat.month[, 10] - dat.month[, 9]) / dat.month[, 9],
+         `2018-08-01` = (dat.month[, 11] - dat.month[, 10]) / dat.month[, 10],
+         `2018-09-01` = (dat.month[, 12] - dat.month[, 11]) / dat.month[, 11],
+         `2018-10-01` = (dat.month[, 13] - dat.month[, 12]) / dat.month[, 12],
+         `2018-11-01` = (dat.month[, 14] - dat.month[, 13]) / dat.month[, 13],
+         `2018-12-01` = (dat.month[, 15] - dat.month[, 14]) / dat.month[, 14],
+         `2019-01-01` = (dat.month[, 16] - dat.month[, 15]) / dat.month[, 15],
+         `2019-02-01` = (dat.month[, 17] - dat.month[, 16]) / dat.month[, 16],
+         `2019-03-01` = (dat.month[, 18] - dat.month[, 17]) / dat.month[, 17],
+         `2019-04-01` = (dat.month[, 19] - dat.month[, 18]) / dat.month[, 18],
+         `2019-05-01` = (dat.month[, 20] - dat.month[, 19]) / dat.month[, 19],
+         `2019-06-01` = (dat.month[, 21] - dat.month[, 20]) / dat.month[, 20],
+         `2019-07-01` = (dat.month[, 22] - dat.month[, 21]) / dat.month[, 21],
+         `2019-08-01` = (dat.month[, 23] - dat.month[, 22]) / dat.month[, 22],
+         `2019-09-01` = (dat.month[, 24] - dat.month[, 23]) / dat.month[, 23],
+         `2019-10-01` = (dat.month[, 25] - dat.month[, 24]) / dat.month[, 24],
+         `2019-11-01` = (dat.month[, 26] - dat.month[, 25]) / dat.month[, 25],
+         `2019-12-01` = (dat.month[, 27] - dat.month[, 26]) / dat.month[, 26],
+         `2020-01-01` = (dat.month[, 28] - dat.month[, 27]) / dat.month[, 27],
+         `2020-02-01` = (dat.month[, 29] - dat.month[, 28]) / dat.month[, 28],
+         `2020-03-01` = (dat.month[, 30] - dat.month[, 29]) / dat.month[, 29],
+         `2020-04-01` = (dat.month[, 31] - dat.month[, 30]) / dat.month[, 30],
+         `2020-05-01` = (dat.month[, 32] - dat.month[, 31]) / dat.month[, 31]) %>%
+  select(-4)
+
+MoM.melt <- reshape2::melt(MoM, id.vars = c("variable", "State.Name", "county.Name"))
+colnames(MoM.melt)[1] <- "Measure"
+MoM.cast <- reshape2::dcast(MoM.melt, variable + State.Name + county.Name ~ Measure, median)
+
+MoM.cast$variable <- as.Date(MoM.cast$variable, format = '%Y-%m-%d')
+
+new.dat <- left_join(new.dat, MoM.cast, by = c("Date" = "variable", "State.Name", "county.Name"))
+
+colnames(new.dat) <- c("Date", "State.Name", "county.Name", "AQI", "Category", "Temerature", "Ozone", "SO2", "CO", "NO2", 
+                       "Month", "AQI_YoY", "Temerature_YoY", "Ozone_YoY", "SO2_YoY", "CO_YoY", "NO2_YoY", 
+                       "AQI_MoM", "Temperature_MoM", "Ozone_MoM", "SO2_MoM", "CO_MoM", "NO2_MoM")
+new.dat <- new.dat %>% 
+  mutate(AQI = ifelse(AQI > 500, 500, AQI))
+
+# write.csv(new.dat, "New_Data.csv", row.names = FALSE)
+```
+
+A new file is written that contains these measurements so they can be integrated in the tableau dashboard. Now our file is clean and ready to start doing an exploratory analysis. 
+
+Making this dashboard gave me a lot of time to look into different aspects of the data (distributions, correlations, trends) and pick out the most applicable, as well notable, aspect of this data to build a dashboard around. I wanted this dashboard to allow users to have a structured exploratory analysis on their own - i.e. the data presented was structured enough that someone with a low-level understanding could interact, explore, and draw their own conclusions from the data. 
+
+This dashboard gives users background information on the different components, allows users to pick a component of interest, slide through dates, pick states and counties of interest. When selecting items, certain aspects (Month over Month, Year over Year, area plots over time, etc.) will be filtered to the respected selection. This dashboard was designed to go from board to specific (states to counties to monthly observations). In the following section, you will be able to interact with the dashboard! 
+
+## Tableau Dashboard 
+
+<iframe src="https://public.tableau.com/views/AQI_Practicum/Dashboard1?:language=en&:display_count=y&:origin=viz_share_link:showVizHome=no&:embed=true" width = "1500" height = "1561"></iframe>
+
+## Time Series Analysis 
+
+For the time series analysis, we will be going back to that base data set that was used to create the YoY and MoM calculations. The data will now be aggregating by the Date, so States and Counties will all be averaged to create a "National" data set. This time series analysis will be done to evaluate how the nation is doing in overall air quality, as well as the components that contribute to the overall air quality. First, we will just be plotting the data over time to give us a good understanding of what we are dealing with: 
+
+```{r}
+# Aggregate by day 
+
+dat.day <- dat %>% 
+  group_by(Date) %>% 
+  summarise(AQI = mean(AQI, na.rm = TRUE), 
+            Temperature = mean(Temperature, na.rm = TRUE), 
+            Ozone = mean(Ozone, na.rm = TRUE), 
+            SO2 = mean(SO2, na.rm = TRUE), 
+            CO = mean(CO, na.rm = TRUE), 
+            NO2 = mean(NO2, na.rm = TRUE))
+
+# Checking for NA values 
+
+nas <- dat.day[!complete.cases(dat.day), ]
+# Temp, NO2, CO, and SO2 all stop having data at 2020-04-30
+
+dat.ts <- ts(dat.day[-1], start = c(2018, 1), frequency = 365)
+plot(dat.ts)
+``` 
+
+The plots certainly display a large amount of seasonality, especially in **Temperture**, **Ozone**, and **NO2**. This can make it difficult to see where the trend is actually going. To see this, we are going to look and the decomposition plots of each component. As a note, R removes "bad data" from these plots if there is not a sufficent amount of data to make an inference. This is typically oberved in the "Trend" and "Random" aspects of the decomposition. 
+
+
+```{r}
+## Splitting by Variables
+
+ts.aqi <- ts(dat.day[-1, 2], start = c(2018, 1), frequency = 365)
+ts.temp <- ts(dat.day[-1, 3], start = c(2018, 1), frequency = 365)
+ts.ozone <- ts(dat.day[-1, 4], start = c(2018, 1), frequency = 365)
+ts.SO2 <- ts(dat.day[-1, 5], start = c(2018, 1), frequency = 365)
+ts.CO <- ts(dat.day[-1, 6], start = c(2018, 1), frequency = 365)
+ts.NO2 <- ts(dat.day[-1, 7], start = c(2018, 1), frequency = 365)
+```
+
+#### AQI Decomposition
+
+```{r}
+decomp.aqi <- decompose(ts.aqi)
+plot(decomp.aqi)
+```
+
+Overall, the trend is going down, which is great. There looks like there was a significant dip, followed by an increase in early 2019. Additionally, it looks like there was an uptick in the end of 2019. The seasonality looks very complex while the random aspect looks like it wasn't fed very good data to determine a true pattern. 
+
+
+#### Temperature Decomposition  
+
+```{r}
+decomp.temp <- decompose(ts.temp)
+plot(decomp.temp)
+```
+
+This one I found very interesting - there seems to be a parabolic shape to the trend line. It looked like there was a fairly steady decrease, a local minimum in the spring of 2019, and then started to steadily increase. The seasonality is very prominent and cyclical, which make sense due to seasons and regular weather patterns.   
+
+#### Ozone Decomposition
+
+```{r}
+decomp.ozone <- decompose(ts.ozone)
+plot(decomp.ozone)
+```
+
+Ozone has a particular interest to me since it's something Denver, Colorado has struggled with for many years. The summers are considered "ozone season", as the warmer weather heavily contributes to the problem. As for the national pattern, it looks like it was decreasing at a fairly steady rate and in early 2019 there was a significant increase. In fall of 2019 there seems to be another significant decrease but does not compensate for the increase seen earlier that year. Once again, the seasonality is pretty complex but has a steady increase and decrease with the respective season. 
+
+#### SO2 Decomposition
+
+```{r}
+decomp.SO2 <- decompose(ts.SO2)
+plot(decomp.SO2)
+```
+
+Starting in the latter half of 2019, there is a decrease in the trend of SO2. Previous to this point, it looks like it was on a plateau with a very small trend of decreasing. The seasonality detected in this time series is almost non-recognizable, as the variability seems to be the one increasing and decreasing aspect during the seasons, rather than the value. 
+
+#### CO Decomposition 
+
+```{r}
+decomp.CO <- decompose(ts.CO)
+plot(decomp.CO)
+```
+
+Once again, there appears to be a drop off of CO measurements in late 2019. There is a steady decrease previous to this. The variability is also more distinguishable, but it also looks like the seasonality speaks more to the variability than the actual values. 
+
+#### NO2 Decomposition 
+
+```{r}
+decomp.NO2 <- decompose(ts.NO2)
+plot(decomp.NO2)
+```
+
+In our final decomposition, there is a dramatic fall of NO2 levels in the late half of 2019. Previously, NO2 levels look like they have a slight decline but are mostly plateau. Seasonality looks like to have more variability in winter months rather than summer months. 
+
+## Conclusion 
+
+This project was largely downloading and prepping the data to get into Tableau. The Tableau development was also a large part of the project, which could not be expressed via step-by-step code or instruction in this report. As for the time series analysis, it looks like something significant happened (or took effect) in the year 2019. Without further investigation, it is difficult to surmise what it could be due to. It could be the effect of political legislation or perhaps the shifting expectations and effects of corporations (such as airlines, Amazon, etc.) to go carbon neutral. I was genuinely surprised that each trend, to the exception of temperature, had a downward protectory. Therefore, I researched EPA analysis on air quality and found their 2019 report, which had very similar results (<https://gispub.epa.gov/air/trendsreport/2020/#home>). Additionally, something to keep in mind when looking at these time series trends is the y-axis. These plots scale the range of data and can make a trend look a lot more drastic than it is in reality. Keeping that in mind, it is possible that these increases and decreases are less impactful than we would initially think. Further research and education would be necessary to make reliable conclusions.
+
