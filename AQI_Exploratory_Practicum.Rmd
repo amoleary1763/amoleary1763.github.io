@@ -8,9 +8,9 @@ output: html_document
 
 If you are interested in downloading the files onto your local device, please follow the following links:
 
-Markdown File: <https://github.com/amoleary1763/amoleary1763.github.io/blob/master/MSDS692_DrugDischarge.Rmd>
+Markdown File: <https://github.com/amoleary1763/amoleary1763.github.io/blob/master/AQI_Exploratory_Practicum.Rmd>
 
-HTML: <https://github.com/amoleary1763/amoleary1763.github.io/blob/master/MSDS692_DrugDischarge.html>
+HTML: <https://github.com/amoleary1763/amoleary1763.github.io/blob/master/AQI_Exploratory_Practicum.html>
 
 All of the data used in this workbook can be found at the following link:
 <https://aqs.epa.gov/aqsweb/airdata/download_files.html#AQI>
